@@ -548,8 +548,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 
 		r = radeon_bo_create(rdev, RADEON_VM_PTE_COUNT * 8,
 				     RADEON_GPU_PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_VRAM, 0,
-				     NULL, NULL, &pt);
+				     RADEON_GEM_DOMAIN_VRAM, NULL, &pt);
 		if (r)
 			return r;
 
@@ -940,10 +939,6 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 
 	bo_va->flags &= ~RADEON_VM_PAGE_VALID;
 	bo_va->flags &= ~RADEON_VM_PAGE_SYSTEM;
-	bo_va->flags &= ~RADEON_VM_PAGE_SNOOPED;
-	if (bo_va->bo && radeon_ttm_tt_is_readonly(bo_va->bo->tbo.ttm))
-		bo_va->flags &= ~RADEON_VM_PAGE_WRITEABLE;
-
 	if (mem) {
 		addr = mem->start << PAGE_SHIFT;
 		if (mem->mem_type != TTM_PL_SYSTEM) {
@@ -951,9 +946,6 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 		}
 		if (mem->mem_type == TTM_PL_TT) {
 			bo_va->flags |= RADEON_VM_PAGE_SYSTEM;
-			if (!(bo_va->bo->flags & (RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC)))
-				bo_va->flags |= RADEON_VM_PAGE_SNOOPED;
-
 		} else {
 			addr += rdev->vm_manager.vram_base_offset;
 		}
@@ -1203,8 +1195,8 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	}
 
 	r = radeon_bo_create(rdev, pd_size, align, true,
-			     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
-			     NULL, &vm->page_directory);
+			     RADEON_GEM_DOMAIN_VRAM, NULL,
+			     &vm->page_directory);
 	if (r)
 		return r;
 

@@ -491,7 +491,6 @@ struct radeon_bo {
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
-	u32				flags;
 	unsigned			pin_count;
 	void				*kptr;
 	u32				tiling_flags;
@@ -575,7 +574,7 @@ int radeon_gem_init(struct radeon_device *rdev);
 void radeon_gem_fini(struct radeon_device *rdev);
 int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 				int alignment, int initial_domain,
-				u32 flags, bool kernel,
+				bool discardable, bool kernel,
 				struct drm_gem_object **obj);
 
 int radeon_mode_dumb_create(struct drm_file *file_priv,

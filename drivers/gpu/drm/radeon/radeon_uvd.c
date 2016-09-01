@@ -141,8 +141,7 @@ int radeon_uvd_init(struct radeon_device *rdev)
 		  RADEON_UVD_STACK_SIZE + RADEON_UVD_HEAP_SIZE +
 		  RADEON_GPU_PAGE_SIZE;
 	r = radeon_bo_create(rdev, bo_size, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, 0, NULL,
-			     NULL, &rdev->uvd.vcpu_bo);
+			     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->uvd.vcpu_bo);
 	if (r) {
 		dev_err(rdev->dev, "(%d) failed to allocate UVD bo\n", r);
 		return r;
@@ -734,8 +733,10 @@ int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
 	uint64_t offs = radeon_bo_size(rdev->uvd.vcpu_bo) -
 		RADEON_GPU_PAGE_SIZE;
 
-	uint32_t *msg = rdev->uvd.cpu_addr + offs;
-	uint64_t addr = rdev->uvd.gpu_addr + offs;
+	r = radeon_bo_create(rdev, 1024, PAGE_SIZE, true,
+			     RADEON_GEM_DOMAIN_VRAM, NULL, &bo);
+	if (r)
+		return r;
 
 	int r, i;
 
@@ -770,8 +771,10 @@ int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 	uint64_t offs = radeon_bo_size(rdev->uvd.vcpu_bo) -
 		RADEON_GPU_PAGE_SIZE;
 
-	uint32_t *msg = rdev->uvd.cpu_addr + offs;
-	uint64_t addr = rdev->uvd.gpu_addr + offs;
+	r = radeon_bo_create(rdev, 1024, PAGE_SIZE, true,
+			     RADEON_GEM_DOMAIN_VRAM, NULL, &bo);
+	if (r)
+		return r;
 
 	int r, i;
 

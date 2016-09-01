@@ -43,7 +43,7 @@ void radeon_gem_object_free(struct drm_gem_object *gobj)
 
 int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 				int alignment, int initial_domain,
-				u32 flags, bool kernel,
+				bool discardable, bool kernel,
 				struct drm_gem_object **obj)
 {
 	struct radeon_bo *robj;
@@ -67,8 +67,7 @@ int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 	}
 
 retry:
-	r = radeon_bo_create(rdev, size, alignment, kernel, initial_domain,
-			     flags, NULL, NULL, &robj);
+	r = radeon_bo_create(rdev, size, alignment, kernel, initial_domain, NULL, &robj);
 	if (r) {
 		if (r != -ERESTARTSYS) {
 			if (initial_domain == RADEON_GEM_DOMAIN_VRAM) {
@@ -258,8 +257,8 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 	/* create a gem object to contain this object in */
 	args->size = roundup(args->size, PAGE_SIZE);
 	r = radeon_gem_object_create(rdev, args->size, args->alignment,
-				     args->initial_domain, args->flags,
-				     false, &gobj);
+					args->initial_domain, false,
+					false, &gobj);
 	if (r) {
 		up_read(&rdev->exclusive_lock);
 		r = radeon_gem_handle_lockup(rdev, r);
@@ -636,6 +635,11 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 		args->operation = RADEON_VA_RESULT_ERROR;
 		return -EINVAL;
 	}
+	if (!(args->flags & RADEON_VM_PAGE_SNOOPED)) {
+		dev_err(&dev->pdev->dev, "only supported snooped mapping for now\n");
+		args->operation = RADEON_VA_RESULT_ERROR;
+		return -EINVAL;
+	}
 
 	switch (args->operation) {
 	case RADEON_VA_MAP:
@@ -750,8 +754,9 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 	args->size = ALIGN(args->size, PAGE_SIZE);
 
 	r = radeon_gem_object_create(rdev, args->size, 0,
-				     RADEON_GEM_DOMAIN_VRAM, 0,
-				     false, &gobj);
+				     RADEON_GEM_DOMAIN_VRAM,
+				     false, ttm_bo_type_device,
+				     &gobj);
 	if (r)
 		return -ENOMEM;
 

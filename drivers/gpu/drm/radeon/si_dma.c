@@ -111,10 +111,50 @@ void si_dma_vm_write_pages(struct radeon_device *rdev,
 	uint64_t value;
 	unsigned ndw;
 
-	while (count) {
-		ndw = count * 2;
-		if (ndw > 0xFFFFE)
-			ndw = 0xFFFFE;
+	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
+
+	if (flags == R600_PTE_GART) {
+		uint64_t src = rdev->gart.table_addr + (addr >> 12) * 8;
+		while (count) {
+			unsigned bytes = count * 8;
+			if (bytes > 0xFFFF8)
+				bytes = 0xFFFF8;
+
+			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_COPY,
+							      1, 0, 0, bytes);
+			ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+			ib->ptr[ib->length_dw++] = lower_32_bits(src);
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+			ib->ptr[ib->length_dw++] = upper_32_bits(src) & 0xff;
+
+			pe += bytes;
+			src += bytes;
+			count -= bytes / 8;
+		}
+	} else if (flags & R600_PTE_SYSTEM) {
+		while (count) {
+			ndw = count * 2;
+			if (ndw > 0xFFFFE)
+				ndw = 0xFFFFE;
+
+			/* for non-physically contiguous pages (system) */
+			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, ndw);
+			ib->ptr[ib->length_dw++] = pe;
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
+				addr += incr;
+				value |= flags;
+				ib->ptr[ib->length_dw++] = value;
+				ib->ptr[ib->length_dw++] = upper_32_bits(value);
+			}
+		}
+	} else {
+		while (count) {
+			ndw = count * 2;
+			if (ndw > 0xFFFFE)
+				ndw = 0xFFFFE;
 
 		/* for non-physically contiguous pages (system) */
 		ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, ndw);

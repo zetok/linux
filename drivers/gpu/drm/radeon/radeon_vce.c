@@ -140,8 +140,12 @@ int radeon_vce_init(struct radeon_device *rdev)
 	else
 		size = vce_v2_0_bo_size(rdev);
 	r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
+<<<<<<< HEAD
 			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, NULL,
 			     &rdev->vce.vcpu_bo);
+=======
+			     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->vce.vcpu_bo);
+>>>>>>> parent of 02376d8... drm/radeon: Allow write-combined CPU mappings of BOs in GTT (v2)
 	if (r) {
 		dev_err(rdev->dev, "(%d) failed to allocate VCE bo\n", r);
 		return r;

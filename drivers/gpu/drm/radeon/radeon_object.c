@@ -119,17 +119,8 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	}
 
 	if (domain & RADEON_GEM_DOMAIN_GTT) {
-		if (rbo->flags & RADEON_GEM_GTT_UC) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_TT;
-
-		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
-			   (rbo->rdev->flags & RADEON_IS_AGP)) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_TT;
+		if (rbo->rdev->flags & RADEON_IS_AGP) {
+			rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT;
 		} else {
 			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED |
@@ -138,17 +129,8 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	}
 
 	if (domain & RADEON_GEM_DOMAIN_CPU) {
-		if (rbo->flags & RADEON_GEM_GTT_UC) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_SYSTEM;
-
-		} else if ((rbo->flags & RADEON_GEM_GTT_WC) ||
-		    rbo->rdev->flags & RADEON_IS_AGP) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_WC |
-				TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_SYSTEM;
+		if (rbo->rdev->flags & RADEON_IS_AGP) {
+			rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_SYSTEM;
 		} else {
 			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_CACHED |
@@ -176,10 +158,8 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 }
 
 int radeon_bo_create(struct radeon_device *rdev,
-		     unsigned long size, int byte_align, bool kernel,
-		     u32 domain, u32 flags, struct sg_table *sg,
-		     struct reservation_object *resv,
-		     struct radeon_bo **bo_ptr)
+		     unsigned long size, int byte_align, bool kernel, u32 domain,
+		     struct sg_table *sg, struct radeon_bo **bo_ptr)
 {
 	struct radeon_bo *bo;
 	enum ttm_bo_type type;
@@ -214,46 +194,8 @@ int radeon_bo_create(struct radeon_device *rdev,
 	INIT_LIST_HEAD(&bo->list);
 	INIT_LIST_HEAD(&bo->va);
 	bo->initial_domain = domain & (RADEON_GEM_DOMAIN_VRAM |
-				       RADEON_GEM_DOMAIN_GTT |
-				       RADEON_GEM_DOMAIN_CPU);
-
-	bo->flags = flags;
-	/* PCI GART is always snooped */
-	if (!(rdev->flags & RADEON_IS_PCIE))
-		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
-
-	/* Write-combined CPU mappings of GTT cause GPU hangs with RV6xx
-	 * See https://bugs.freedesktop.org/show_bug.cgi?id=91268
-	 */
-	if (rdev->family >= CHIP_RV610 && rdev->family <= CHIP_RV635)
-		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
-
-#ifdef CONFIG_X86_32
-	/* XXX: Write-combined CPU mappings of GTT seem broken on 32-bit
-	 * See https://bugs.freedesktop.org/show_bug.cgi?id=84627
-	 */
-	bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
-#elif defined(CONFIG_X86) && !defined(CONFIG_X86_PAT)
-	/* Don't try to enable write-combining when it can't work, or things
-	 * may be slow
-	 * See https://bugs.freedesktop.org/show_bug.cgi?id=88758
-	 */
-
-#warning Please enable CONFIG_MTRR and CONFIG_X86_PAT for better performance \
-	 thanks to write-combining
-
-	if (bo->flags & RADEON_GEM_GTT_WC)
-		DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
-			      "better performance thanks to write-combining\n");
-	bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
-#else
-	/* For architectures that don't support WC memory,
-	 * mask out the WC flag from the BO
-	 */
-	if (!drm_arch_can_wc_memory())
-		bo->flags &= ~RADEON_GEM_GTT_WC;
-#endif
-
+	                               RADEON_GEM_DOMAIN_GTT |
+	                               RADEON_GEM_DOMAIN_CPU);
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
 	down_read(&rdev->pm.mclk_lock);

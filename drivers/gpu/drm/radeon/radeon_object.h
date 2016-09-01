@@ -124,7 +124,7 @@ extern int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
 
 extern int radeon_bo_create(struct radeon_device *rdev,
 			    unsigned long size, int byte_align,
-			    bool kernel, u32 domain, u32 flags,
+			    bool kernel, u32 domain,
 			    struct sg_table *sg,
 			    struct reservation_object *resv,
 			    struct radeon_bo **bo_ptr);
@@ -172,8 +172,7 @@ static inline void * radeon_sa_bo_cpu_addr(struct radeon_sa_bo *sa_bo)
 
 extern int radeon_sa_bo_manager_init(struct radeon_device *rdev,
 				     struct radeon_sa_manager *sa_manager,
-				     unsigned size, u32 align, u32 domain,
-				     u32 flags);
+				     unsigned size, u32 align, u32 domain);
 extern void radeon_sa_bo_manager_fini(struct radeon_device *rdev,
 				      struct radeon_sa_manager *sa_manager);
 extern int radeon_sa_bo_manager_start(struct radeon_device *rdev,
